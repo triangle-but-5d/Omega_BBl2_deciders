@@ -57,6 +57,7 @@ combineTrool p q = case (p, q) of (MAYBE, x) -> x
 toTrool p = case p of True -> TRUE
                       False -> FALSE
 
+--what it SHOULD do: return FALSE if l has any free vars in it, TRUE if it definitely has no free vars, and MAYBE otherwise
 syntaxValid (l, s) = let syntaxParse l i = case l of Unknown -> MAYBE
                                                      LamOrApp -> MAYBE
                                                      Lambda lx -> syntaxParse lx (i+1)
@@ -64,6 +65,7 @@ syntaxValid (l, s) = let syntaxParse l i = case l of Unknown -> MAYBE
                                                      UnknownDeBruijn j -> if (i>=j) then MAYBE else FALSE
                                                      App lx ly -> andTrool (syntaxParse lx i) (syntaxParse ly i) in syntaxParse l 0
 
+--what it SHOULD do: return FALSE if l has any free vars in it, and MAYBE otherwise
 syntaxDecider s = andTrool MAYBE (syntaxValid s)
 
 isNormal l = case l of Unknown -> MAYBE
@@ -74,11 +76,14 @@ isNormal l = case l of Unknown -> MAYBE
                        App (Lambda lx) ly -> FALSE
                        App lx ly -> andTrool (isNormal lx) (isNormal ly)
 
+--what it SHOULD do: return FALSE if l isn't in normal form, has any free vars, or doesn't discard the data, MAYBE if l is incomplete, and TRUE if l is complete, in normal form and discards the data 
 discardDataAndIsNormal (l, s) = case l of Lambda lx -> andTrool (isNormal l) (syntaxValid (lx, "!"))
                                           lx -> FALSE
 
+--what it SHOULD do: return TRUE if l is complete, in normal form, and discards the data, and MAYBE otherwise
 discardDataAndIsNormalDecider s = orTrool MAYBE (discardDataAndIsNormal s)
 
+--what it SHOULD do: return TRUE if l is in normal form and has a copy of the ith free variable where nothing is applied to it, MAYBE if l is not in normal form or incomplete, and FALSE otherwise
 hasNonAppliedTo l i = case l of Unknown -> MAYBE
                                 LamOrApp -> MAYBE
                                 Lambda lx -> hasNonAppliedTo lx (i+1)
@@ -89,6 +94,7 @@ hasNonAppliedTo l i = case l of Unknown -> MAYBE
                                 App (Lambda lx) ly -> MAYBE
                                 App lx ly -> orTrool (hasNonAppliedTo lx i) (hasNonAppliedTo ly i)
 
+--what it SHOULD do: return FALSE if l has free vars or l is in normal form and has a copy of the data where nothing is applied to it, and MAYBE otherwise
 readsAndHasNonAppliedToDataDecider (l, s) = case syntaxValid (l, s) of FALSE -> FALSE
                                                                        _ -> andTrool MAYBE (notTrool (hasNonAppliedTo l 0))
 
