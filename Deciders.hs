@@ -86,6 +86,7 @@ hasNonAppliedTo l i = case l of Unknown -> MAYBE
                                 UnknownDeBruijn j -> if (i>=j) then MAYBE else FALSE
                                 App (DeBruijn j) ly -> hasNonAppliedTo ly i
                                 App (UnknownDeBruijn j) ly -> hasNonAppliedTo ly i
+                                App (Lambda lx) ly -> MAYBE
                                 App lx ly -> orTrool (hasNonAppliedTo lx i) (hasNonAppliedTo ly i)
 
 readsAndHasNonAppliedToDataDecider (l, s) = case syntaxValid (l, s) of FALSE -> FALSE
