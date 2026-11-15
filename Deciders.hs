@@ -82,8 +82,8 @@ discardDataAndIsNormalDecider s = orTrool MAYBE (discardDataAndIsNormal s)
 hasNonAppliedTo l i = case l of Unknown -> MAYBE
                                 LamOrApp -> MAYBE
                                 Lambda lx -> hasNonAppliedTo lx (i+1)
-                                DeBruijn j -> if ((i+1)==j) then TRUE else FALSE
-                                UnknownDeBruijn j -> if ((i+1)>=j) then MAYBE else FALSE
+                                DeBruijn j -> if (i==j) then TRUE else FALSE
+                                UnknownDeBruijn j -> if (i>=j) then MAYBE else FALSE
                                 App (DeBruijn j) ly -> hasNonAppliedTo ly i
                                 App (UnknownDeBruijn j) ly -> hasNonAppliedTo ly i
                                 App lx ly -> orTrool (hasNonAppliedTo lx i) (hasNonAppliedTo ly i)
