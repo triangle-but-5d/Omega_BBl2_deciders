@@ -113,14 +113,17 @@ decFreeVar l i = case l of Unknown -> Unknown
                            Lambda lx -> Lambda (decFreeVar lx (i+1))
                            App lx ly -> App (decFreeVar lx i) (decFreeVar ly i)
 
---should reduce everywhere the lambda doesn't bind its input, or it's identity, and nowhere else
+--should reduce everywhere the lambda doesn't bind its input, or it's identity, and propogate unknowns, and nowhere else
 shrink l = case l of Unknown -> Unknown
                      LamOrApp -> LamOrApp
                      DeBruijn j -> DeBruijn j
                      UnknownDeBruijn j -> UnknownDeBruijn j
                      Lambda lx -> Lambda (shrink lx)
-                     App lx ly -> if bindsVar (shrink lx) 0==FALSE then case decFreeVar (shrink lx) 0 of Lambda lxx -> lxx 
-                                                                                                         lxx -> App (shrink lx) (shrink ly) else if shrink lx==Lambda (DeBruijn 1) then shrink ly else App (shrink lx) (shrink ly)
+                     App lx ly -> case ly of Unknown -> Unknown
+                                             LamOrApp -> Unknown
+                                             UnknownDeBruijn j -> Unknown
+                                             _ -> if bindsVar (shrink lx) 0==FALSE then case decFreeVar (shrink lx) 0 of Lambda lxx -> lxx 
+                                                                                                                         lxx -> App (shrink lx) (shrink ly) else if shrink lx==Lambda (DeBruijn 1) then shrink ly else App (shrink lx) (shrink ly)
 
 equiv (l, s) = (foldr (.) id [shrink] l, s)
 
@@ -131,8 +134,16 @@ instance Show OmegaTree where
                             Leaf cs FALSE -> cs++" Impossible"
                             Branch ox oy -> "("++show ox++", "++show oy++")"
 
-decider s = case foldr ($ s) MAYBE (map (combineTrool.) [syntaxDecider, discardDataAndIsNormalDecider, readsAndHasNonAppliedToDataDecider]) of MAYBE -> foldr ($ (equiv s)) MAYBE (map (combineTrool.) [syntaxDecider, discardDataAndIsNormalDecider, readsAndHasNonAppliedToDataDecider])
-                                                                                                                                               p -> p
+manual (l, s) = case l of Lambda (App (DeBruijn 1) (DeBruijn 1)) -> FALSE
+                          Lambda (App (DeBruijn 1) (Lambda (Lambda (DeBruijn 2)))) -> case s of '0':_ -> TRUE
+                                                                                                '1':_ -> TRUE
+                                                                                                _ -> MAYBE
+                          _ -> MAYBE
+
+manualDecider (l, s) = manual (l, s)
+
+decider s = let deciders = [syntaxDecider, discardDataAndIsNormalDecider, readsAndHasNonAppliedToDataDecider, manualDecider] in case foldr ($ s) MAYBE (map (combineTrool.) deciders) of MAYBE -> foldr ($ (equiv s)) MAYBE (map (combineTrool.) deciders)
+                                                                                                                                                                                          p -> p
 
 omegaTree i s = case i of 0 -> Leaf s MAYBE
                           n -> case decider (parsebbl2 s) of FALSE -> Leaf s FALSE 
