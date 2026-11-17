@@ -112,4 +112,12 @@ omegaTree i s = case i of 0 -> Leaf s MAYBE
                                                              MAYBE -> Branch (omegaTree (n-1) (init s++"0!")) (omegaTree (n-1) (init s++"1!"))
                                                              TRUE -> Leaf s TRUE
 
-main = print.omegaTree 10$"!"
+pairAvg p1 p2 = case p1 of (x1, x2) -> case p2 of (y1, y2) -> ((x1+y1)/2, (x2+y2)/2)
+
+omegaBound :: OmegaTree -> (Rational, Rational)
+omegaBound t = case t of Leaf cs TRUE -> (1, 1)
+                         Leaf cs MAYBE -> (0, 1)
+                         Leaf cs FALSE -> (0, 0)
+                         Branch tx ty -> pairAvg (omegaBound tx) (omegaBound ty)
+
+main = print.omegaBound.omegaTree 24$"!"
