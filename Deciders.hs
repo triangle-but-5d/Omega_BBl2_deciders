@@ -83,20 +83,27 @@ discardDataAndIsNormal (l, s) = case l of Lambda lx -> andTrool (isNormal l) (sy
 --what it SHOULD do: return TRUE if l is complete, in normal form, and discards the data, and MAYBE otherwise
 discardDataAndIsNormalDecider s = orTrool MAYBE (discardDataAndIsNormal s)
 
+--what it SHOULD do: check if the ith free variable is head-reduced
+headReducesInput l i = case l of Unknown -> MAYBE
+                                 LamOrApp -> MAYBE
+                                 Lambda lx -> headReducesInput lx (i+1)
+                                 DeBruijn j -> if (i==j) then TRUE else FALSE
+                                 UnknownDeBruijn j -> if (i>=j) then MAYBE else FALSE
+                                 App (Lambda lx) ly -> MAYBE
+                                 App lx ly -> headReducesInput lx i
+
 --what it SHOULD do: return TRUE if l is in normal form and has a copy of the ith free variable where nothing is applied to it, MAYBE if l is not in normal form or incomplete, and FALSE otherwise
-hasNonAppliedTo l i = case l of Unknown -> MAYBE
-                                LamOrApp -> MAYBE
-                                Lambda lx -> hasNonAppliedTo lx (i+1)
-                                DeBruijn j -> if (i==j) then TRUE else FALSE
-                                UnknownDeBruijn j -> if (i>=j) then MAYBE else FALSE
-                                App (DeBruijn j) ly -> hasNonAppliedTo ly i
-                                App (UnknownDeBruijn j) ly -> hasNonAppliedTo ly i
-                                App (Lambda lx) ly -> MAYBE
-                                App lx ly -> orTrool (hasNonAppliedTo lx i) (hasNonAppliedTo ly i)
+hasNonHeadReducedInput l i = case l of Unknown -> MAYBE
+                                       LamOrApp -> MAYBE
+                                       Lambda lx -> hasNonHeadReducedInput lx (i+1)
+                                       DeBruijn j -> if (i==j) then TRUE else FALSE
+                                       UnknownDeBruijn j -> if (i>=j) then MAYBE else FALSE
+                                       App (Lambda lx) ly -> MAYBE
+                                       App lx ly -> andTrool (notTrool (headReducesInput lx i)) (orTrool (hasNonHeadReducedInput lx i) (hasNonHeadReducedInput ly i))
 
 --what it SHOULD do: return FALSE if l has free vars or l is in normal form and has a copy of the data where nothing is applied to it, and MAYBE otherwise
 readsAndHasNonAppliedToDataDecider (l, s) = case syntaxValid (l, s) of FALSE -> FALSE
-                                                                       _ -> andTrool MAYBE (notTrool (hasNonAppliedTo l 0))
+                                                                       _ -> andTrool MAYBE (notTrool (hasNonHeadReducedInput l 0))
 
 data OmegaTree = Leaf [Char] Trool | Branch OmegaTree OmegaTree
 instance Show OmegaTree where
