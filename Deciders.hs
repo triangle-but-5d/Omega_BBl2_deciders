@@ -105,6 +105,25 @@ hasNonHeadReducedInput l i = case l of Unknown -> MAYBE
 readsAndHasNonAppliedToDataDecider (l, s) = case syntaxValid (l, s) of FALSE -> FALSE
                                                                        _ -> andTrool MAYBE (notTrool (hasNonHeadReducedInput l 0))
 
+--should decrease all DeBruijn indicies ABOVE i by 1
+decFreeVar l i = case l of Unknown -> Unknown
+                           LamOrApp -> LamOrApp
+                           DeBruijn j -> if i<j then DeBruijn (j-1) else DeBruijn j
+                           UnknownDeBruijn j -> if i<j then UnknownDeBruijn (j-1) else UnknownDeBruijn j
+                           Lambda lx -> Lambda (decFreeVar lx (i+1))
+                           App lx ly -> App (decFreeVar lx i) (decFreeVar ly i)
+
+--should reduce everywhere the lambda doesn't bind its input, or it's identity, and nowhere else
+shrink l = case l of Unknown -> Unknown
+                     LamOrApp -> LamOrApp
+                     DeBruijn j -> DeBruijn j
+                     UnknownDeBruijn j -> UnknownDeBruijn j
+                     Lambda lx -> Lambda (shrink lx)
+                     App lx ly -> if bindsVar (shrink lx) 0==FALSE then case decFreeVar (shrink lx) 0 of Lambda lxx -> lxx 
+                                                                                                         lxx -> App (shrink lx) (shrink ly) else if shrink lx==Lambda (DeBruijn 1) then shrink ly else App (shrink lx) (shrink ly)
+
+equiv (l, s) = (foldr (.) id [shrink] l, s)
+
 data OmegaTree = Leaf [Char] Trool | Branch OmegaTree OmegaTree
 instance Show OmegaTree where
          show o = case o of Leaf cs TRUE -> cs++" Halt"
@@ -112,7 +131,8 @@ instance Show OmegaTree where
                             Leaf cs FALSE -> cs++" Impossible"
                             Branch ox oy -> "("++show ox++", "++show oy++")"
 
-decider s = foldr ($ s) MAYBE (map (combineTrool.) [syntaxDecider, discardDataAndIsNormalDecider, readsAndHasNonAppliedToDataDecider])
+decider s = case foldr ($ s) MAYBE (map (combineTrool.) [syntaxDecider, discardDataAndIsNormalDecider, readsAndHasNonAppliedToDataDecider]) of MAYBE -> foldr ($ (equiv s)) MAYBE (map (combineTrool.) [syntaxDecider, discardDataAndIsNormalDecider, readsAndHasNonAppliedToDataDecider])
+                                                                                                                                               p -> p
 
 omegaTree i s = case i of 0 -> Leaf s MAYBE
                           n -> case decider (parsebbl2 s) of FALSE -> Leaf s FALSE 
