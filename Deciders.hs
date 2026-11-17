@@ -76,6 +76,13 @@ isNormal l = case l of Unknown -> MAYBE
                        App (Lambda lx) ly -> FALSE
                        App lx ly -> andTrool (isNormal lx) (isNormal ly)
 
+complete l = case l of Unknown -> FALSE
+                       LamOrApp -> FALSE
+                       Lambda lx -> complete lx
+                       DeBruijn i -> TRUE
+                       UnknownDeBruijn i -> FALSE
+                       App lx ly -> andTrool (complete lx) (complete ly)
+
 --what it SHOULD do: return FALSE if l isn't in normal form, has any free vars, or doesn't discard the data, MAYBE if l is incomplete, and TRUE if l is complete, in normal form and discards the data 
 discardDataAndIsNormal (l, s) = case l of Lambda lx -> andTrool (isNormal l) (syntaxValid (lx, "!"))
                                           lx -> FALSE
@@ -118,12 +125,15 @@ shrink l = case l of Unknown -> Unknown
                      LamOrApp -> LamOrApp
                      DeBruijn j -> DeBruijn j
                      UnknownDeBruijn j -> UnknownDeBruijn j
-                     Lambda lx -> Lambda (shrink lx)
-                     App lx ly -> case ly of Unknown -> Unknown
-                                             LamOrApp -> Unknown
-                                             UnknownDeBruijn j -> Unknown
-                                             _ -> if bindsVar (shrink lx) 0==FALSE then case decFreeVar (shrink lx) 0 of Lambda lxx -> lxx 
-                                                                                                                         lxx -> App (shrink lx) (shrink ly) else if shrink lx==Lambda (DeBruijn 1) then shrink ly else App (shrink lx) (shrink ly)
+                     Lambda lx -> case shrink lx of Unknown -> Unknown
+                                                    LamOrApp -> Unknown
+                                                    UnknownDeBruijn j -> Unknown
+                                                    _ -> Lambda (shrink lx)
+                     App lx ly -> case shrink ly of Unknown -> Unknown
+                                                    LamOrApp -> Unknown
+                                                    UnknownDeBruijn j -> Unknown
+                                                    _ -> if bindsVar (shrink lx) 0==FALSE then case decFreeVar (shrink lx) 0 of Lambda lxx -> lxx 
+                                                                                                                                lxx -> App (shrink lx) (shrink ly) else if shrink lx==Lambda (DeBruijn 1) then shrink ly else App (shrink lx) (shrink ly)
 
 equiv (l, s) = (foldr (.) id [shrink] l, s)
 
